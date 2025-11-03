@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Inflates overlay controls for shape selection and cancellation.
+  Inputs: Touch events from overlay buttons.
+  Outputs: Commands to the overlay service.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/overlay_controls_background"
+    android:orientation="horizontal"
+    android:padding="8dp">
+
+    <ToggleButton
+        android:id="@+id/rectangleToggle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/select_shape_rectangle"
+        android:textOff="@string/select_shape_rectangle"
+        android:textOn="@string/select_shape_rectangle" />
+
+    <ToggleButton
+        android:id="@+id/circleToggle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/select_shape_circle"
+        android:textOff="@string/select_shape_circle"
+        android:textOn="@string/select_shape_circle"
+        android:layout_marginStart="8dp" />
+
+    <Button
+        android:id="@+id/cancelButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:text="@string/cancel_selection" />
+</LinearLayout>

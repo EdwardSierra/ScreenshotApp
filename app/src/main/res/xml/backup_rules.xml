@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Defines backup behavior by excluding volatile files from automatic backups.
+  Inputs: None.
+  Outputs: Backup instructions for the Android backup manager.
+-->
+<full-backup-content>
+    <exclude domain="files" />
+</full-backup-content>

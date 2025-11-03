@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Declares file system paths available through the FileProvider for sharing images.
+  Inputs: File requests made via the FileProvider.
+  Outputs: Mapped content URIs for stored screenshots.
+-->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <external-files-path
+        name="screenshot_images"
+        path="screenshots/" />
+</paths>

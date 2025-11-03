@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Specifies data extraction rules to opt out of automatic cloud backups.
+  Inputs: None.
+  Outputs: Backup configuration consumed by the Android system.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="files" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="files" />
+    </device-transfer>
+</data-extraction-rules>

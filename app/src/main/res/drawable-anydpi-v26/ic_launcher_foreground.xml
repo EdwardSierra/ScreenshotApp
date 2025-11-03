@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Provides a vector drawable used as the launcher foreground asset.
+  Inputs: Launcher icon rendering.
+  Outputs: Vector image of a camera inside a rounded rectangle.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#1E88E5"
+        android:pathData="M20,30h68a6,6 0 0 1 6,6v36a6,6 0 0 1 -6,6H20a6,6 0 0 1 -6,-6V36a6,6 0 0 1 6,-6z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,44a14,14 0 1 1 0,28 14,14 0 0 1 0,-28z" />
+    <path
+        android:fillColor="#1E88E5"
+        android:pathData="M54,50a8,8 0 1 1 0,16 8,8 0 0 1 0,-16z" />
+</vector>

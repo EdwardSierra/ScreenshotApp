@@ -1,0 +1,22 @@
+# Android/Gradle build outputs
+/.gradle/
+/build/
+app/build/
+
+# Local configuration files
+/local.properties
+/.idea/
+*.iml
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Gradle wrapper caches
+gradle-app.setting
+
+# Android Studio captures
+/captures/

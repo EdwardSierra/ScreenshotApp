@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Declares color resources for consistent styling across the application.
+  Inputs: Color resource requests.
+  Outputs: Hex color values.
+-->
+<resources>
+    <color name="primaryColor">#1E88E5</color>
+    <color name="primaryDarkColor">#1565C0</color>
+    <color name="accentColor">#FFB300</color>
+    <color name="overlayBackground">#88000000</color>
+    <color name="selectionStroke">#FFFFFFFF</color>
+    <color name="selectionFill">#44FFFFFF</color>
+    <color name="ic_launcher_background">#FFFFFFFF</color>
+</resources>

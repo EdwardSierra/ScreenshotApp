@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Provides localized string resources used throughout the application.
+  Inputs: Resource lookups from UI components.
+  Outputs: User-facing strings.
+-->
+<resources>
+    <string name="app_name">ScreenshotApp</string>
+    <string name="start_overlay">Start Screenshot Overlay</string>
+    <string name="request_overlay_permission">Grant overlay permission to continue.</string>
+    <string name="grant_permission">Grant Permission</string>
+    <string name="select_shape_rectangle">Rectangle</string>
+    <string name="select_shape_circle">Circle</string>
+    <string name="cancel_selection">Cancel</string>
+    <string name="capturing_screen">Capturing screenshot...</string>
+    <string name="capture_success">Screenshot captured and copied to clipboard.</string>
+    <string name="capture_failure">Failed to capture screenshot.</string>
+    <string name="overlay_service_channel_name">Screenshot Overlay</string>
+    <string name="overlay_service_channel_description">Displays floating tools to capture screenshots.</string>
+    <string name="screen_capture_denied">Screen capture permission denied.</string>
+</resources>
