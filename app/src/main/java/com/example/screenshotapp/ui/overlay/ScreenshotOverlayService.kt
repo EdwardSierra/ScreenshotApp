@@ -31,6 +31,7 @@ import com.example.screenshotapp.logging.AppLogger
 import com.example.screenshotapp.ui.MainActivity
 import com.example.screenshotapp.ui.overlay.SelectionShape
 import com.example.screenshotapp.util.ClipboardHelper
+import com.example.screenshotapp.util.PermissionHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -101,6 +102,7 @@ class ScreenshotOverlayService : Service() {
             intent?.getParcelableExtra(EXTRA_RESULT_DATA)
         }
         if (data == null || resultCode == 0) {
+            Toast.makeText(this, getString(R.string.screen_capture_denied), Toast.LENGTH_SHORT).show()
             AppLogger.logError("ScreenshotOverlayService", "Missing media projection data.")
             stopSelf()
             return START_NOT_STICKY
@@ -110,7 +112,14 @@ class ScreenshotOverlayService : Service() {
             mediaProjection?.registerCallback(projectionCallback, Handler(Looper.getMainLooper()))
         }
         startForeground(NOTIFICATION_ID, buildNotification())
-        floatingButtonController.show()
+        if (PermissionHelper.hasOverlayPermission(this)) {
+            floatingButtonController.show()
+        } else {
+            AppLogger.logError("ScreenshotOverlayService", "Overlay permission missing after service start.")
+            Toast.makeText(this, getString(R.string.request_overlay_permission), Toast.LENGTH_LONG).show()
+            stopSelf()
+            return START_NOT_STICKY
+        }
         AppLogger.logInfo("ScreenshotOverlayService", "Overlay service started.")
         return START_STICKY
     }

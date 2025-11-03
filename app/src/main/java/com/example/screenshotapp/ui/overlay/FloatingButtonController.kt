@@ -7,6 +7,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.example.screenshotapp.R
 import com.example.screenshotapp.logging.AppLogger
@@ -36,6 +37,7 @@ class FloatingButtonController(
         if (overlayView != null) {
             return
         }
+        AppLogger.logInfo("FloatingButtonController", "Attempting to show floating button.")
         val padding = (16 * context.resources.displayMetrics.density).toInt()
         val button = ImageView(context).apply {
             contentDescription = context.getString(R.string.start_overlay)
@@ -104,9 +106,14 @@ class FloatingButtonController(
             }
         })
 
-        overlayView = button
-        windowManager.addView(button, params)
-        AppLogger.logInfo("FloatingButtonController", "Floating button displayed.")
+        try {
+            windowManager.addView(button, params)
+            overlayView = button
+            AppLogger.logInfo("FloatingButtonController", "Floating button displayed.")
+        } catch (securityException: SecurityException) {
+            AppLogger.logError("FloatingButtonController", "Failed to add floating button. Missing overlay permission?", securityException)
+            Toast.makeText(context, context.getString(R.string.request_overlay_permission), Toast.LENGTH_LONG).show()
+        }
     }
 
     /**
