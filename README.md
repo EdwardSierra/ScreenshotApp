@@ -42,7 +42,7 @@ ScreenshotApp is an Android utility that provides a floating overlay for capturi
    adb install -r app/build/outputs/apk/debug/app-debug.apk
    ```
 4. Launch the **ScreenshotApp** from the app drawer.
-5. Grant the **Display over other apps** permission when prompted, then tap **Start Screenshot Overlay**.
+5. Grant the **Display over other apps** permission when prompted, then tap **Start Screenshot Overlay**. (On Samsung devices, open the overflow menu and choose **All apps** if ScreenshotApp does not appear immediately.)
 6. Accept the screen capture permission dialog.
 7. Use the floating button to choose **Rectangle** or **Circle**, drag to highlight the desired region, and release to capture.
 
