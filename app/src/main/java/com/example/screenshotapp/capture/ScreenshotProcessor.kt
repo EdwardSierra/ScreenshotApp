@@ -7,6 +7,7 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
+import android.graphics.Shader
 import com.example.screenshotapp.logging.AppLogger
 import com.example.screenshotapp.ui.overlay.SelectionShape
 import kotlin.math.max
@@ -82,7 +83,7 @@ class ScreenshotProcessor {
         val output = Bitmap.createBitmap(diameter, diameter, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(output)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-        val shader = BitmapShader(bitmap, BitmapShader.TileMode.CLAMP, BitmapShader.TileMode.CLAMP)
+        val shader = BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
         val matrix = Matrix()
         matrix.postTranslate(-clampedRect.left.toFloat(), -clampedRect.top.toFloat())
         shader.setLocalMatrix(matrix)
