@@ -67,3 +67,31 @@ Run unit tests before committing changes:
 - Shape selection behavior is encapsulated in `SelectionOverlayView`; adjust visuals there if you need to tweak UX.
 - Clipboard integration uses a FileProvider-backed URI. Update `file_paths.xml` if you change storage locations.
 - Remember to keep `.gitignore` in sync when new build artifacts appear.
+
+## Working from WSL
+
+If you are using Windows Subsystem for Linux (WSL) and want to run Gradle/ADB commands inside WSL:
+
+1. Install required packages:
+   ```bash
+   sudo apt update
+   sudo apt install unzip openjdk-17-jdk wget
+   ```
+2. Download the Android command-line tools for Linux from [developer.android.com/studio](https://developer.android.com/studio). Place them under `~/android-sdk/cmdline-tools/latest`.
+3. Accept licenses and install the needed SDK components from WSL:
+   ```bash
+   yes | ~/android-sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+   ```
+4. Export the SDK paths (add these lines to `~/.bashrc` or `~/.zshrc`):
+   ```bash
+   export ANDROID_HOME=$HOME/android-sdk
+   export ANDROID_SDK_ROOT=$ANDROID_HOME
+   export PATH=$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin
+   ```
+5. In the repository root, create `local.properties` pointing to the Linux SDK:
+   ```bash
+   echo "sdk.dir=$HOME/android-sdk" > local.properties
+   ```
+6. Run `./gradlew assembleDebug` or `./gradlew test` directly inside WSL.
+
+> Note: Android Studio installed on Windows does not expose its Windows binaries to WSL. If you prefer the IDE on Windows, keep Studio there for editing and run Gradle/ADB commands from PowerShell/CMD instead.
