@@ -22,6 +22,7 @@ import android.os.Looper
 import android.view.LayoutInflater
 import android.view.WindowManager
 import android.widget.Toast
+import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.example.screenshotapp.R
@@ -111,7 +112,12 @@ class ScreenshotOverlayService : Service() {
             mediaProjection = mediaProjectionManager.getMediaProjection(resultCode, data)
             mediaProjection?.registerCallback(projectionCallback, Handler(Looper.getMainLooper()))
         }
-        startForeground(NOTIFICATION_ID, buildNotification())
+        val notification = buildNotification()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
         if (PermissionHelper.hasOverlayPermission(this)) {
             floatingButtonController.show()
         } else {
