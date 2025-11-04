@@ -27,7 +27,6 @@ import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.example.screenshotapp.R
-import com.example.screenshotapp.capture.ProjectionGrantCache
 import com.example.screenshotapp.capture.ScreenshotProcessor
 import com.example.screenshotapp.capture.ScreenshotStorage
 import com.example.screenshotapp.logging.AppLogger
@@ -67,7 +66,6 @@ class ScreenshotOverlayService : Service() {
     private var mediaProjection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var imageReader: ImageReader? = null
-    private val projectionGrantCache = ProjectionGrantCache()
     private val captureMutex = Mutex()
     private val displayLock = Any()
     private var selectionOverlayView: SelectionOverlayView? = null
@@ -192,8 +190,6 @@ class ScreenshotOverlayService : Service() {
         }
 
         val projectionData = Intent(data)
-        projectionGrantCache.store(resultCode, projectionData)
-
         val notification = buildNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
@@ -258,7 +254,6 @@ class ScreenshotOverlayService : Service() {
         } catch (interrupted: InterruptedException) {
             Thread.currentThread().interrupt()
         }
-        projectionGrantCache.clear()
         AppLogger.logInfo("ScreenshotOverlayService", "Service destroyed.")
         super.onDestroy()
     }
@@ -416,23 +411,20 @@ class ScreenshotOverlayService : Service() {
                 AppLogger.logError("ScreenshotOverlayService", "Unable to prepare virtual display.", exception)
                 withContext(Dispatchers.Main) {
                     pendingSelection = true
-                    val restarted = restartProjectionFromCache()
-                    awaitingReprojection = !restarted
-                    if (restarted) {
-                        floatingButtonController.show()
-                    } else {
-                        requestProjectionPermission()
-                    }
+                    awaitingReprojection = true
+                    resetProjection()
+                    requestProjectionPermission()
                 }
                 return
             }
 
             var captureSuccessful = false
             var encounteredFailure = false
+            var needsPermissionRenewal = false
 
             withContext(Dispatchers.IO) {
                 try {
-                    drainImageReader(reader)
+                    reader.acquireLatestImage()?.close()
                     val image = awaitImage(reader) ?: throw IllegalStateException("Failed to capture screen image.")
                     val bitmap = try {
                         image.toBitmap(width, height)
@@ -451,6 +443,14 @@ class ScreenshotOverlayService : Service() {
                     encounteredFailure = true
                     AppLogger.logError("ScreenshotOverlayService", "Capture failed.", exception)
                     notifyFailure()
+                    releaseVirtualDisplay()
+                    try {
+                        ensureVirtualDisplay(width, height, density)
+                        AppLogger.logInfo("ScreenshotOverlayService", "Virtual display recreated after capture failure.")
+                    } catch (recreateException: Exception) {
+                        needsPermissionRenewal = true
+                        AppLogger.logError("ScreenshotOverlayService", "Unable to recreate virtual display after failure.", recreateException)
+                    }
                 }
             }
 
@@ -461,29 +461,15 @@ class ScreenshotOverlayService : Service() {
             } else if (encounteredFailure) {
                 withContext(Dispatchers.Main) {
                     pendingSelection = true
-                    val restarted = restartProjectionFromCache()
-                    awaitingReprojection = !restarted
-                    if (restarted) {
-                        floatingButtonController.show()
-                    } else {
+                    if (needsPermissionRenewal) {
+                        awaitingReprojection = true
+                        resetProjection()
                         requestProjectionPermission()
+                    } else {
+                        floatingButtonController.show()
                     }
                 }
             }
-        }
-    }
-
-    /**
-     * Removes pending frames from the shared image reader to avoid stale captures.
-     *
-     * Inputs: [reader] - Shared image reader sourced from the persistent virtual display.
-     * Outputs: Reader drained so the next frame represents current screen content.
-     */
-    private fun drainImageReader(reader: ImageReader) {
-        var staleImage = reader.acquireLatestImage()
-        while (staleImage != null) {
-            staleImage.close()
-            staleImage = reader.acquireLatestImage()
         }
     }
 
@@ -494,6 +480,7 @@ class ScreenshotOverlayService : Service() {
      * Outputs: Captured [Image] or null if timeout occurs.
      */
     private suspend fun awaitImage(imageReader: ImageReader): Image? {
+        imageReader.acquireLatestImage()?.let { return it }
         return withTimeoutOrNull(CAPTURE_TIMEOUT_MS) {
             suspendCancellableCoroutine { continuation ->
                 val handler = Handler(imageListenerThread.looper)
@@ -601,31 +588,6 @@ class ScreenshotOverlayService : Service() {
     private fun notifyFailure() {
         Handler(Looper.getMainLooper()).post {
             Toast.makeText(this@ScreenshotOverlayService, getString(R.string.capture_failure), Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    /**
-     * Attempts to restore the media projection using the last granted consent.
-     *
-     * Inputs: None.
-     * Outputs: True when projection is successfully reinitialized without user interaction.
-     */
-    private fun restartProjectionFromCache(): Boolean {
-        val resultCode = projectionGrantCache.code() ?: return false
-        val data = projectionGrantCache.data() ?: return false
-        return try {
-            resetProjection()
-            mediaProjection = mediaProjectionManager.getMediaProjection(resultCode, data)
-            awaitingReprojection = false
-            mediaProjection?.registerCallback(projectionCallback, Handler(Looper.getMainLooper()))
-            val metrics = resources.displayMetrics
-            ensureVirtualDisplay(metrics.widthPixels, metrics.heightPixels, metrics.densityDpi)
-            AppLogger.logInfo("ScreenshotOverlayService", "Media projection reinitialized from cached consent.")
-            true
-        } catch (exception: Exception) {
-            AppLogger.logError("ScreenshotOverlayService", "Failed to restart media projection from cached data.", exception)
-            mediaProjection = null
-            false
         }
     }
 

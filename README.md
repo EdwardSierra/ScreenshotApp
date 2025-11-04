@@ -16,7 +16,7 @@ ScreenshotApp is an Android utility that provides a floating overlay for capturi
   - `capture/` - Bitmap processing and storage helpers
   - `logging/` - File-backed logging utilities
   - `util/` - Permission and clipboard helpers
-- `app/src/test/` - JVM unit tests for bitmap processing and projection caching helpers
+- `app/src/test/` - JVM unit tests for bitmap processing helpers
 
 ## Prerequisites
 1. Install **Android Studio (Giraffe or newer)** from [developer.android.com/studio](https://developer.android.com/studio).
