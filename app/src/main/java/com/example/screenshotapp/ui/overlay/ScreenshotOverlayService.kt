@@ -19,6 +19,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.HandlerThread
 import android.view.LayoutInflater
 import android.view.WindowManager
 import android.widget.Toast
@@ -57,6 +58,7 @@ class ScreenshotOverlayService : Service() {
     private lateinit var floatingButtonController: FloatingButtonController
     private lateinit var mediaProjectionManager: MediaProjectionManager
     private lateinit var screenshotStorage: ScreenshotStorage
+    private lateinit var imageListenerThread: HandlerThread
     private val screenshotProcessor = ScreenshotProcessor()
 
     private var mediaProjection: MediaProjection? = null
@@ -87,6 +89,7 @@ class ScreenshotOverlayService : Service() {
             enterSelectionMode()
         }
         screenshotStorage = ScreenshotStorage(this)
+        imageListenerThread = HandlerThread("screenshot-image-listener").apply { start() }
         createNotificationChannel()
         AppLogger.logInfo("ScreenshotOverlayService", "Service created.")
     }
@@ -149,6 +152,12 @@ class ScreenshotOverlayService : Service() {
         mediaProjection?.stop()
         mediaProjection = null
         serviceScope.cancel()
+        imageListenerThread.quitSafely()
+        try {
+            imageListenerThread.join()
+        } catch (interrupted: InterruptedException) {
+            Thread.currentThread().interrupt()
+        }
         AppLogger.logInfo("ScreenshotOverlayService", "Service destroyed.")
         super.onDestroy()
     }
@@ -300,6 +309,7 @@ class ScreenshotOverlayService : Service() {
         withContext(Dispatchers.IO) {
             var imageReader: ImageReader? = null
             var capturedImage: Image? = null
+            var listenerRegistered = false
             try {
                 imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, IMAGE_READER_MAX_IMAGES)
                 virtualDisplay = projection.createVirtualDisplay(
@@ -313,7 +323,11 @@ class ScreenshotOverlayService : Service() {
                     null
                 )
                 delay(CAPTURE_START_DELAY_MS)
-                capturedImage = awaitImage(imageReader)
+                capturedImage = imageReader.acquireLatestImage()
+                if (capturedImage == null) {
+                    listenerRegistered = true
+                    capturedImage = awaitImage(imageReader)
+                }
                 val image = capturedImage ?: throw IllegalStateException("Failed to capture screen image.")
                 val bitmap = image.toBitmap(width, height)
                 image.close()
@@ -349,6 +363,9 @@ class ScreenshotOverlayService : Service() {
                 }
             } finally {
                 capturedImage?.close()
+                if (listenerRegistered) {
+                    imageReader?.setOnImageAvailableListener(null, null)
+                }
                 imageReader?.close()
                 virtualDisplay?.release()
                 virtualDisplay = null
@@ -370,10 +387,10 @@ class ScreenshotOverlayService : Service() {
     private suspend fun awaitImage(imageReader: ImageReader): Image? {
         return withTimeoutOrNull(CAPTURE_TIMEOUT_MS) {
             suspendCancellableCoroutine { continuation ->
-                val handler = Handler(Looper.getMainLooper())
+                val handler = Handler(imageListenerThread.looper)
                 val listener = ImageReader.OnImageAvailableListener { reader ->
                     val image = reader.acquireLatestImage()
-                    if (image != null) {
+                    if (image != null && !continuation.isCancelled) {
                         reader.setOnImageAvailableListener(null, null)
                         continuation.resume(image)
                     }
