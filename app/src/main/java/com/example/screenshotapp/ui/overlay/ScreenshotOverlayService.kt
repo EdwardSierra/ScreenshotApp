@@ -377,16 +377,21 @@ class ScreenshotOverlayService : Service() {
                         "ScreenshotOverlayService",
                         "Media projection token invalidated; prompting reauthorization."
                     )
-                    withContext(Dispatchers.Main) {
-                        pendingSelection = true
-                        awaitingReprojection = true
-                        requestProjectionPermission()
-                    }
                 } else {
+                    AppLogger.logError(
+                        "ScreenshotOverlayService",
+                        "Capture failed with recoverable error; requesting new projection."
+                    )
+                }
+                withContext(Dispatchers.Main) {
                     imageReader?.close()
                     imageReader = null
                     virtualDisplay?.release()
                     virtualDisplay = null
+                    pendingSelection = true
+                    awaitingReprojection = true
+                    resetProjection()
+                    requestProjectionPermission()
                 }
             } finally {
                 capturedImage?.close()
