@@ -4,22 +4,20 @@ import android.app.Activity
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
-import android.view.View
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import com.example.screenshotapp.R
+import com.example.screenshotapp.capture.ProjectionPermissionRepository
 import com.example.screenshotapp.databinding.ActivityMainBinding
 import com.example.screenshotapp.logging.AppLogger
-import com.example.screenshotapp.ui.overlay.ScreenshotOverlayService
-import com.example.screenshotapp.util.PermissionHelper
 
 /**
- * Hosts the onboarding flow that requests permissions and launches the overlay service.
+ * Presents onboarding guidance for configuring the quick settings capture tile.
  *
- * Inputs: User interactions with the UI.
- * Outputs: Foreground service start with granted permissions.
+ * Inputs: User taps on the request permission and quick settings editor buttons.
+ * Outputs: Stored media projection permission data ready for future captures.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -33,10 +31,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Prepares the activity by inflating the layout and wiring button listeners.
+     * Prepares the activity by inflating the layout and binding click listeners.
      *
      * Inputs: [savedInstanceState] - Previously saved state bundle.
-     * Outputs: Initialized UI ready for user interaction.
+     * Outputs: User interface ready for interaction.
      */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,19 +44,19 @@ class MainActivity : AppCompatActivity() {
         mediaProjectionManager = getSystemService(MediaProjectionManager::class.java)
             ?: throw IllegalStateException("MediaProjectionManager not available.")
 
-        binding.startOverlayButton.setOnClickListener {
-            onStartOverlayTapped()
+        binding.requestCaptureButton.setOnClickListener {
+            requestCapturePermission()
         }
-        binding.openOverlayPermissionButton.setOnClickListener {
-            PermissionHelper.openOverlaySettings(this)
+        binding.openQuickSettingsButton.setOnClickListener {
+            openQuickSettingsEditor()
         }
     }
 
     /**
-     * Refreshes permission indicators each time the activity returns to the foreground.
+     * Refreshes permission messaging whenever the activity returns to the foreground.
      *
      * Inputs: None.
-     * Outputs: Updated visibility for permission prompts.
+     * Outputs: Updated status text reflecting the capture permission state.
      */
     override fun onResume() {
         super.onResume()
@@ -66,73 +64,66 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Handles the start overlay button click by validating permissions and requesting capture access.
-     *
-     * Inputs: None.
-     * Outputs: Launches the media projection permission dialog.
-     */
-    private fun onStartOverlayTapped() {
-        if (!PermissionHelper.hasOverlayPermission(this)) {
-            Toast.makeText(this, getString(R.string.request_overlay_permission), Toast.LENGTH_SHORT).show()
-            updatePermissionState()
-            return
-        }
-        requestProjection()
-    }
-
-    /**
-     * Begins the media projection permission flow using the registered launcher.
+     * Launches the system media projection prompt so the user can grant capture access.
      *
      * Inputs: None.
      * Outputs: System permission dialog displayed.
      */
-    private fun requestProjection() {
+    private fun requestCapturePermission() {
         val captureIntent = mediaProjectionManager.createScreenCaptureIntent()
-        AppLogger.logInfo("MainActivity", "Requesting media projection permission.")
+        AppLogger.logInfo("MainActivity", "Requesting media projection permission from onboarding flow.")
         projectionLauncher.launch(captureIntent)
     }
 
     /**
-     * Processes the result from the media projection permission activity.
+     * Processes the result from the media projection prompt and stores valid permissions.
      *
-     * Inputs: [resultCode] - Result code from the permission activity, [data] - Returned intent.
-     * Outputs: Starts the overlay service when permission is granted.
+     * Inputs: [resultCode] - System result code, [data] - Media projection intent data.
+     * Outputs: Stored permission data or an error toast.
      */
     private fun handleProjectionResult(resultCode: Int, data: Intent?) {
         if (resultCode == Activity.RESULT_OK && data != null) {
+            ProjectionPermissionRepository.store(resultCode, Intent(data))
+            Toast.makeText(this, getString(R.string.capture_permission_granted), Toast.LENGTH_SHORT).show()
             AppLogger.logInfo("MainActivity", "Media projection permission granted.")
-            startOverlayService(resultCode, data)
         } else {
             Toast.makeText(this, getString(R.string.screen_capture_denied), Toast.LENGTH_SHORT).show()
             AppLogger.logError("MainActivity", "Media projection permission denied.")
         }
+        updatePermissionState()
     }
 
     /**
-     * Starts the foreground screenshot overlay service with the required media projection data.
-     *
-     * Inputs: [resultCode] - Permission result code, [data] - Media projection data.
-     * Outputs: Foreground service initiated.
-     */
-    private fun startOverlayService(resultCode: Int, data: Intent) {
-        val intent = Intent(this, ScreenshotOverlayService::class.java).apply {
-            putExtra(ScreenshotOverlayService.EXTRA_RESULT_CODE, resultCode)
-            putExtra(ScreenshotOverlayService.EXTRA_RESULT_DATA, Intent(data))
-        }
-        AppLogger.logInfo("MainActivity", "Starting overlay service.")
-        ContextCompat.startForegroundService(this, intent)
-        moveTaskToBack(true)
-    }
-
-    /**
-     * Updates UI elements to reflect the current overlay permission state.
+     * Launches the quick settings editor so the user can pin the screenshot tile.
      *
      * Inputs: None.
-     * Outputs: Visibility changes for informational views.
+     * Outputs: System UI opened when supported.
+     */
+    private fun openQuickSettingsEditor() {
+        val editorIntent = Intent("android.settings.QUICK_SETTINGS_ADD_OTHER_TILES")
+        val fallbackIntent = Intent(Settings.ACTION_SETTINGS)
+        try {
+            AppLogger.logInfo("MainActivity", "Opening quick settings editor.")
+            startActivity(editorIntent)
+        } catch (exception: Exception) {
+            AppLogger.logError("MainActivity", "Quick settings editor launch failed; falling back to Settings.", exception)
+            startActivity(fallbackIntent)
+        }
+    }
+
+    /**
+     * Updates the permission status text to mirror the stored media projection state.
+     *
+     * Inputs: None.
+     * Outputs: Status label text refreshed for the current permission state.
      */
     private fun updatePermissionState() {
-        val hasPermission = PermissionHelper.hasOverlayPermission(this)
-        binding.permissionMessage.visibility = if (hasPermission) View.GONE else View.VISIBLE
-        binding.openOverlayPermissionButton.visibility = binding.permissionMessage.visibility
+        val hasPermission = ProjectionPermissionRepository.hasPermission()
+        val message = if (hasPermission) {
+            getString(R.string.capture_permission_granted)
+        } else {
+            getString(R.string.capture_permission_missing)
+        }
+        binding.permissionStatusText.text = message
     }
 }

@@ -9,14 +9,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.screenshotapp.R
+import com.example.screenshotapp.capture.ProjectionPermissionRepository
 import com.example.screenshotapp.logging.AppLogger
-import com.example.screenshotapp.ui.overlay.ScreenshotOverlayService
+import com.example.screenshotapp.ui.capture.ScreenshotCaptureService
 
 /**
- * Requests screen capture permission and relays the result back to the overlay service.
+ * Requests media projection permission and stores the result for future captures.
  *
- * Inputs: Launch trigger from [ScreenshotOverlayService] when a new permission is required.
- * Outputs: Starts the overlay service with fresh projection data or surfaces an error.
+ * Inputs: Launch triggers from the quick settings tile or onboarding flow.
+ * Outputs: Cached permission tokens and optional capture service start.
  */
 class ProjectionRequestActivity : AppCompatActivity() {
 
@@ -28,31 +29,49 @@ class ProjectionRequestActivity : AppCompatActivity() {
         handleProjectionResult(result.resultCode, result.data)
     }
 
+    /**
+     * Begins the permission request immediately when the activity is created.
+     *
+     * Inputs: [savedInstanceState] - Previously saved state.
+     * Outputs: Media projection dialog displayed.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mediaProjectionManager = getSystemService(MediaProjectionManager::class.java)
             ?: run {
                 Toast.makeText(this, R.string.screen_capture_denied, Toast.LENGTH_SHORT).show()
+                AppLogger.logError("ProjectionRequestActivity", "MediaProjectionManager unavailable.")
                 finish()
                 return
             }
-        AppLogger.logInfo("ProjectionRequestActivity", "Requesting new media projection permission.")
+        AppLogger.logInfo("ProjectionRequestActivity", "Requesting media projection permission.")
         projectionLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
     }
 
+    /**
+     * Stores the permission data and optionally restarts the capture workflow.
+     *
+     * Inputs: [resultCode] - System result code, [data] - Returned intent.
+     * Outputs: Foreground capture service started or an error toast.
+     */
     private fun handleProjectionResult(resultCode: Int, data: Intent?) {
         if (resultCode == Activity.RESULT_OK && data != null) {
-            AppLogger.logInfo("ProjectionRequestActivity", "Media projection permission granted from activity.")
-            val serviceIntent = Intent(this, ScreenshotOverlayService::class.java).apply {
-                putExtra(ScreenshotOverlayService.EXTRA_RESULT_CODE, resultCode)
-                putExtra(ScreenshotOverlayService.EXTRA_RESULT_DATA, data)
-                putExtra(ScreenshotOverlayService.EXTRA_AUTO_START_SELECTION, true)
+            ProjectionPermissionRepository.store(resultCode, Intent(data))
+            Toast.makeText(this, getString(R.string.capture_permission_granted), Toast.LENGTH_SHORT).show()
+            AppLogger.logInfo("ProjectionRequestActivity", "Media projection permission granted.")
+            if (intent.getBooleanExtra(EXTRA_TRIGGER_CAPTURE, false)) {
+                val serviceIntent = ScreenshotCaptureService.createIntent(this)
+                ContextCompat.startForegroundService(this, serviceIntent)
             }
-            ContextCompat.startForegroundService(this, serviceIntent)
         } else {
             Toast.makeText(this, R.string.screen_capture_denied, Toast.LENGTH_SHORT).show()
             AppLogger.logError("ProjectionRequestActivity", "Media projection permission denied.")
         }
         finish()
     }
+
+    companion object {
+        const val EXTRA_TRIGGER_CAPTURE = "extra_trigger_capture"
+    }
 }
+

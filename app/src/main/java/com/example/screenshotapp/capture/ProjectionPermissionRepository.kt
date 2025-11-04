@@ -1,0 +1,72 @@
+package com.example.screenshotapp.capture
+
+import android.content.Intent
+import android.media.projection.MediaProjection
+import android.media.projection.MediaProjectionManager
+import com.example.screenshotapp.logging.AppLogger
+
+/**
+ * Stores and rehydrates media projection permissions for repeated screenshot captures.
+ *
+ * Inputs: Result codes and intent data returned from the system capture prompt.
+ * Outputs: Ready-to-use [MediaProjection] instances or null when unavailable.
+ */
+object ProjectionPermissionRepository {
+
+    private var resultCode: Int? = null
+    private var projectionData: Intent? = null
+
+    /**
+     * Persists the latest permission grant so background services can reuse it.
+     *
+     * Inputs: [code] - Result code from the capture prompt, [data] - Intent containing projection tokens.
+     * Outputs: Internal state updated for future capture requests.
+     */
+    fun store(code: Int, data: Intent) {
+        resultCode = code
+        projectionData = Intent(data)
+        AppLogger.logInfo("ProjectionPermissionRepository", "Stored media projection permission.")
+    }
+
+    /**
+     * Returns true when a permission token is currently cached.
+     *
+     * Inputs: None.
+     * Outputs: Boolean indicating whether capture can proceed immediately.
+     */
+    fun hasPermission(): Boolean = resultCode != null && projectionData != null
+
+    /**
+     * Attempts to build a new [MediaProjection] from the cached permission data.
+     *
+     * Inputs: [manager] - Android media projection manager.
+     * Outputs: Fresh [MediaProjection] or null if the cached data is invalid.
+     */
+    fun getProjection(manager: MediaProjectionManager): MediaProjection? {
+        val code = resultCode
+        val data = projectionData
+        if (code == null || data == null) {
+            return null
+        }
+        return try {
+            manager.getMediaProjection(code, Intent(data))
+        } catch (throwable: Throwable) {
+            AppLogger.logError("ProjectionPermissionRepository", "Failed to obtain media projection from cached data.", throwable)
+            clear()
+            null
+        }
+    }
+
+    /**
+     * Clears the cached permission data after a failure or explicit revocation.
+     *
+     * Inputs: None.
+     * Outputs: Internal cached tokens removed.
+     */
+    fun clear() {
+        resultCode = null
+        projectionData = null
+        AppLogger.logInfo("ProjectionPermissionRepository", "Cleared stored media projection permission.")
+    }
+}
+

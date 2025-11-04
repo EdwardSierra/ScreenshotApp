@@ -8,7 +8,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:targetApi="tiramisu" />
@@ -34,11 +33,6 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <service
-            android:name=".ui.overlay.ScreenshotOverlayService"
-            android:exported="false"
-            android:foregroundServiceType="mediaProjection" />
-
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
@@ -53,5 +47,24 @@
             android:name=".ui.ProjectionRequestActivity"
             android:exported="false"
             android:theme="@style/Theme.ScreenshotApp.Transparent" />
+
+        <activity
+            android:name=".ui.crop.CropScreenshotActivity"
+            android:exported="false" />
+
+        <service
+            android:name=".ui.capture.ScreenshotCaptureService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+
+        <service
+            android:name=".ui.tile.ScreenshotTileService"
+            android:exported="false"
+            android:label="@string/tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>
