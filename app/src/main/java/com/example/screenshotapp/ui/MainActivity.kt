@@ -117,7 +117,7 @@ class MainActivity : AppCompatActivity() {
     private fun startOverlayService(resultCode: Int, data: Intent) {
         val intent = Intent(this, ScreenshotOverlayService::class.java).apply {
             putExtra(ScreenshotOverlayService.EXTRA_RESULT_CODE, resultCode)
-            putExtra(ScreenshotOverlayService.EXTRA_RESULT_DATA, data)
+            putExtra(ScreenshotOverlayService.EXTRA_RESULT_DATA, Intent(data))
         }
         AppLogger.logInfo("MainActivity", "Starting overlay service.")
         ContextCompat.startForegroundService(this, intent)
