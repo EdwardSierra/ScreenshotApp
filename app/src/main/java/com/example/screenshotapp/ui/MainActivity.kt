@@ -121,7 +121,7 @@ class MainActivity : AppCompatActivity() {
         }
         AppLogger.logInfo("MainActivity", "Starting overlay service.")
         ContextCompat.startForegroundService(this, intent)
-        finish()
+        moveTaskToBack(true)
     }
 
     /**
