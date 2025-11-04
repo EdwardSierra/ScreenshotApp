@@ -94,6 +94,21 @@ class ScreenshotOverlayService : Service() {
         AppLogger.logInfo("ScreenshotOverlayService", "Service created.")
     }
 
+    private fun resetProjection() {
+        AppLogger.logInfo("ScreenshotOverlayService", "Resetting media projection instance.")
+        mediaProjection?.unregisterCallback(projectionCallback)
+        mediaProjection?.stop()
+        mediaProjection = null
+    }
+
+    private fun resetProjectionIfNeeded() {
+        if (mediaProjection == null) {
+            return
+        }
+        AppLogger.logInfo("ScreenshotOverlayService", "Reinitializing media projection for new capture.")
+        resetProjection()
+    }
+
     /**
      * Handles the start command by initializing media projection and showing the overlay.
      *
@@ -121,11 +136,9 @@ class ScreenshotOverlayService : Service() {
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
-        if (mediaProjection == null) {
-            AppLogger.logInfo("ScreenshotOverlayService", "Initializing media projection.")
-            mediaProjection = mediaProjectionManager.getMediaProjection(resultCode, data)
-            mediaProjection?.registerCallback(projectionCallback, Handler(Looper.getMainLooper()))
-        }
+        AppLogger.logInfo("ScreenshotOverlayService", "Initializing media projection.")
+        mediaProjection = mediaProjectionManager.getMediaProjection(resultCode, data)
+        mediaProjection?.registerCallback(projectionCallback, Handler(Looper.getMainLooper()))
         if (PermissionHelper.hasOverlayPermission(this)) {
             floatingButtonController.show()
         } else {
@@ -170,6 +183,7 @@ class ScreenshotOverlayService : Service() {
      */
     private fun enterSelectionMode() {
         floatingButtonController.dismiss()
+        resetProjectionIfNeeded()
         addSelectionOverlay()
         addControls()
         Toast.makeText(this, getString(R.string.capturing_screen), Toast.LENGTH_SHORT).show()
@@ -354,9 +368,7 @@ class ScreenshotOverlayService : Service() {
                             Toast.LENGTH_LONG
                         ).show()
                     }
-                    mediaProjection?.unregisterCallback(projectionCallback)
-                    mediaProjection?.stop()
-                    mediaProjection = null
+                    resetProjection()
                     withContext(Dispatchers.Main) {
                         stopSelf()
                     }
