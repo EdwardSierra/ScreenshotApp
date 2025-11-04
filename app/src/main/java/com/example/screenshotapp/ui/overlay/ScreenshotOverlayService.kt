@@ -88,9 +88,12 @@ class ScreenshotOverlayService : Service() {
         super.onCreate()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         mediaProjectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        floatingButtonController = FloatingButtonController(this, windowManager) {
-            startSelectionFlow()
-        }
+        floatingButtonController = FloatingButtonController(
+            context = this,
+            windowManager = windowManager,
+            onClick = { startSelectionFlow() },
+            onCancel = { stopSelf() }
+        )
         screenshotStorage = ScreenshotStorage(this)
         imageListenerThread = HandlerThread("screenshot-image-listener").apply { start() }
         createNotificationChannel()

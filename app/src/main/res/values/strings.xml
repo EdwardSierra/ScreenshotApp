@@ -17,5 +17,6 @@
     <string name="capture_failure">Failed to capture screenshot.</string>
     <string name="overlay_service_channel_name">Screenshot Overlay</string>
     <string name="overlay_service_channel_description">Displays floating tools to capture screenshots.</string>
+    <string name="close_overlay">Close overlay</string>
     <string name="screen_capture_denied">Screen capture permission denied.</string>
 </resources>

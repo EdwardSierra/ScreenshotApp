@@ -3,6 +3,7 @@ package com.example.screenshotapp.ui.overlay
 import android.content.Context
 import android.graphics.PixelFormat
 import android.view.Gravity
+import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
@@ -22,9 +23,11 @@ import kotlin.math.abs
 class FloatingButtonController(
     private val context: Context,
     private val windowManager: WindowManager,
-    private val onClick: () -> Unit
+    private val onClick: () -> Unit,
+    private val onCancel: () -> Unit
 ) {
 
+    private val inflater: LayoutInflater = LayoutInflater.from(context)
     private var overlayView: View? = null
 
     /**
@@ -38,13 +41,9 @@ class FloatingButtonController(
             return
         }
         AppLogger.logInfo("FloatingButtonController", "Attempting to show floating button.")
-        val padding = (16 * context.resources.displayMetrics.density).toInt()
-        val button = ImageView(context).apply {
-            contentDescription = context.getString(R.string.start_overlay)
-            setImageDrawable(ContextCompat.getDrawable(context, R.drawable.ic_overlay_button))
-            setBackgroundResource(R.drawable.overlay_controls_background)
-            setPadding(padding, padding, padding, padding)
-        }
+        val button = inflater.inflate(R.layout.widget_floating_button, null)
+        val captureButton: ImageView = button.findViewById(R.id.captureButton)
+        val closeButton: ImageView = button.findViewById(R.id.closeButton)
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -59,7 +58,7 @@ class FloatingButtonController(
             y = 150
         }
 
-        button.setOnTouchListener(object : View.OnTouchListener {
+        captureButton.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
             private var initialTouchX = 0f
@@ -105,6 +104,10 @@ class FloatingButtonController(
                 return false
             }
         })
+
+        closeButton.setOnClickListener {
+            onCancel()
+        }
 
         try {
             windowManager.addView(button, params)
