@@ -64,8 +64,6 @@ class ScreenshotOverlayService : Service() {
     private var mediaProjection: MediaProjection? = null
     private var selectionOverlayView: SelectionOverlayView? = null
     private var controlsView: android.view.View? = null
-    private var virtualDisplay: VirtualDisplay? = null
-    private var imageReader: ImageReader? = null
     private var currentMode: SelectionMode = SelectionMode.RECTANGLE
     private var pendingSelection = false
     private var awaitingReprojection = false
@@ -102,10 +100,6 @@ class ScreenshotOverlayService : Service() {
 
     private fun resetProjection() {
         AppLogger.logInfo("ScreenshotOverlayService", "Resetting media projection instance.")
-        imageReader?.close()
-        imageReader = null
-        virtualDisplay?.release()
-        virtualDisplay = null
         mediaProjection?.unregisterCallback(projectionCallback)
         mediaProjection?.let {
             awaitingReprojection = true
@@ -123,7 +117,7 @@ class ScreenshotOverlayService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val resultCode = intent?.getIntExtra(EXTRA_RESULT_CODE, 0) ?: return START_NOT_STICKY
         val data = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent?.getParcelableExtra(EXTRA_RESULT_DATA, Intent::class.java)
+            intent.getParcelableExtra(EXTRA_RESULT_DATA, Intent::class.java)
         } else {
             @Suppress("DEPRECATION")
             intent?.getParcelableExtra(EXTRA_RESULT_DATA)
@@ -189,10 +183,6 @@ class ScreenshotOverlayService : Service() {
     override fun onDestroy() {
         floatingButtonController.dismiss()
         removeSelectionOverlay()
-        imageReader?.close()
-        imageReader = null
-        virtualDisplay?.release()
-        virtualDisplay = null
         mediaProjection?.unregisterCallback(projectionCallback)
         mediaProjection?.stop()
         mediaProjection = null
@@ -350,14 +340,26 @@ class ScreenshotOverlayService : Service() {
         val width = metrics.widthPixels
         val height = metrics.heightPixels
         val density = metrics.densityDpi
-        ensureVirtualDisplay(projection, width, height, density)
 
         withContext(Dispatchers.IO) {
             var capturedImage: Image? = null
+            var reader: ImageReader? = null
+            var display: VirtualDisplay? = null
             try {
-                val reader = imageReader ?: throw IllegalStateException("ImageReader unavailable.")
+                reader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, IMAGE_READER_MAX_IMAGES)
+                display = projection.createVirtualDisplay(
+                    "screenshot-capture",
+                    width,
+                    height,
+                    density,
+                    DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                    reader!!.surface,
+                    null,
+                    null
+                )
+                AppLogger.logInfo("ScreenshotOverlayService", "Virtual display created for capture attempt.")
                 reader.acquireLatestImage()?.close()
-                val image = awaitImage(reader)
+                val image = awaitImage(reader!!)
                 capturedImage = image ?: throw IllegalStateException("Failed to capture screen image.")
                 val bitmap = capturedImage!!.toBitmap(width, height)
                 capturedImage!!.close()
@@ -377,24 +379,17 @@ class ScreenshotOverlayService : Service() {
                         "ScreenshotOverlayService",
                         "Media projection token invalidated; prompting reauthorization."
                     )
-                } else {
-                    AppLogger.logError(
-                        "ScreenshotOverlayService",
-                        "Capture failed with recoverable error; requesting new projection."
-                    )
-                }
-                withContext(Dispatchers.Main) {
-                    imageReader?.close()
-                    imageReader = null
-                    virtualDisplay?.release()
-                    virtualDisplay = null
-                    pendingSelection = true
-                    awaitingReprojection = true
-                    resetProjection()
-                    requestProjectionPermission()
+                    withContext(Dispatchers.Main) {
+                        pendingSelection = true
+                        awaitingReprojection = true
+                        resetProjection()
+                        requestProjectionPermission()
+                    }
                 }
             } finally {
                 capturedImage?.close()
+                reader?.close()
+                display?.release()
                 if (mediaProjection != null && !awaitingReprojection) {
                     withContext(Dispatchers.Main) {
                         floatingButtonController.show()
@@ -402,33 +397,6 @@ class ScreenshotOverlayService : Service() {
                 }
             }
         }
-    }
-
-    private fun ensureVirtualDisplay(
-        projection: MediaProjection,
-        width: Int,
-        height: Int,
-        density: Int
-    ) {
-        if (virtualDisplay != null && imageReader != null) {
-            return
-        }
-        imageReader?.close()
-        virtualDisplay?.release()
-        val reader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, IMAGE_READER_MAX_IMAGES)
-        val display = projection.createVirtualDisplay(
-            "screenshot-capture",
-            width,
-            height,
-            density,
-            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-            reader.surface,
-            null,
-            null
-        )
-        imageReader = reader
-        virtualDisplay = display
-        AppLogger.logInfo("ScreenshotOverlayService", "Virtual display initialized.")
     }
 
     /**
