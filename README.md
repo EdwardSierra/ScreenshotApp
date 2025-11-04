@@ -6,6 +6,7 @@ ScreenshotApp is an Android utility that provides a floating overlay for capturi
 - Floating overlay button that can be dragged anywhere on screen
 - Rectangle or circle selection modes with real-time visual feedback
 - Cropped screenshot automatically saved and copied to the clipboard
+- Reuses the granted screen capture permission so you can take successive screenshots without re-sharing
 - Persistent logging written to `Android/data/<package>/files/logs/screenshot_app.log`
 - Foreground service architecture to keep the overlay active
 
@@ -15,7 +16,7 @@ ScreenshotApp is an Android utility that provides a floating overlay for capturi
   - `capture/` - Bitmap processing and storage helpers
   - `logging/` - File-backed logging utilities
   - `util/` - Permission and clipboard helpers
-- `app/src/test/` - JVM unit tests for bitmap cropping logic
+- `app/src/test/` - JVM unit tests for bitmap processing and projection caching helpers
 
 ## Prerequisites
 1. Install **Android Studio (Giraffe or newer)** from [developer.android.com/studio](https://developer.android.com/studio).
@@ -61,6 +62,7 @@ Run unit tests before committing changes:
 ```bash
 ./gradlew test
 ```
+The suite runs on Robolectric so Android framework classes (e.g., `Bitmap`, `Intent`) behave like they do on device.
 
 ## Notes for Developers
 - All core actions are logged through `AppLogger` for easier debugging.

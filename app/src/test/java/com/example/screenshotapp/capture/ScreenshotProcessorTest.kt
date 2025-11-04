@@ -7,6 +7,8 @@ import com.example.screenshotapp.ui.overlay.SelectionShape
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Validates the bitmap cropping logic implemented by [ScreenshotProcessor].
@@ -14,6 +16,7 @@ import org.junit.Test
  * Inputs: Synthetic bitmaps and selection shapes.
  * Outputs: Assertions verifying cropping dimensions.
  */
+@RunWith(RobolectricTestRunner::class)
 class ScreenshotProcessorTest {
 
     private val processor = ScreenshotProcessor()

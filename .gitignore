@@ -14,6 +14,7 @@ Thumbs.db
 
 # Logs
 *.log
+*.hprof
 
 # Gradle wrapper caches
 gradle-app.setting
