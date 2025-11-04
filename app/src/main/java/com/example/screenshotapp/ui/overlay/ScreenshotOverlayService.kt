@@ -67,6 +67,7 @@ class ScreenshotOverlayService : Service() {
     private var virtualDisplay: VirtualDisplay? = null
     private var currentMode: SelectionMode = SelectionMode.RECTANGLE
     private var pendingSelection = false
+    private var awaitingReprojection = false
 
     /**
      * Provides the binding interface; unused because the service is started.
@@ -98,7 +99,10 @@ class ScreenshotOverlayService : Service() {
     private fun resetProjection() {
         AppLogger.logInfo("ScreenshotOverlayService", "Resetting media projection instance.")
         mediaProjection?.unregisterCallback(projectionCallback)
-        mediaProjection?.stop()
+        mediaProjection?.let {
+            awaitingReprojection = true
+            it.stop()
+        }
         mediaProjection = null
     }
 
@@ -141,6 +145,7 @@ class ScreenshotOverlayService : Service() {
         resetProjection()
         AppLogger.logInfo("ScreenshotOverlayService", "Initializing media projection.")
         mediaProjection = mediaProjectionManager.getMediaProjection(resultCode, data)
+        awaitingReprojection = false
         mediaProjection?.registerCallback(projectionCallback, Handler(Looper.getMainLooper()))
         if (PermissionHelper.hasOverlayPermission(this)) {
             floatingButtonController.show()
@@ -386,6 +391,7 @@ class ScreenshotOverlayService : Service() {
             )
             withContext(Dispatchers.Main) {
                 pendingSelection = true
+                awaitingReprojection = true
                 requestProjectionPermission()
             }
         }
@@ -532,6 +538,11 @@ class ScreenshotOverlayService : Service() {
          */
         override fun onStop() {
             AppLogger.logInfo("ScreenshotOverlayService", "Media projection stopped.")
+            mediaProjection = null
+            if (awaitingReprojection || pendingSelection) {
+                AppLogger.logInfo("ScreenshotOverlayService", "Projection stop detected while awaiting new permission; keeping service alive.")
+                return
+            }
             stopSelf()
         }
     }
