@@ -136,6 +136,7 @@ class ScreenshotOverlayService : Service() {
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
+        resetProjection()
         AppLogger.logInfo("ScreenshotOverlayService", "Initializing media projection.")
         mediaProjection = mediaProjectionManager.getMediaProjection(resultCode, data)
         mediaProjection?.registerCallback(projectionCallback, Handler(Looper.getMainLooper()))
@@ -183,7 +184,6 @@ class ScreenshotOverlayService : Service() {
      */
     private fun enterSelectionMode() {
         floatingButtonController.dismiss()
-        resetProjectionIfNeeded()
         addSelectionOverlay()
         addControls()
         Toast.makeText(this, getString(R.string.capturing_screen), Toast.LENGTH_SHORT).show()
