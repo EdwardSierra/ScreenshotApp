@@ -108,15 +108,17 @@ class ScreenshotOverlayService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        if (mediaProjection == null) {
-            mediaProjection = mediaProjectionManager.getMediaProjection(resultCode, data)
-            mediaProjection?.registerCallback(projectionCallback, Handler(Looper.getMainLooper()))
-        }
+
         val notification = buildNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
         } else {
             startForeground(NOTIFICATION_ID, notification)
+        }
+        if (mediaProjection == null) {
+            AppLogger.logInfo("ScreenshotOverlayService", "Initializing media projection.")
+            mediaProjection = mediaProjectionManager.getMediaProjection(resultCode, data)
+            mediaProjection?.registerCallback(projectionCallback, Handler(Looper.getMainLooper()))
         }
         if (PermissionHelper.hasOverlayPermission(this)) {
             floatingButtonController.show()
