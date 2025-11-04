@@ -298,7 +298,7 @@ class ScreenshotOverlayService : Service() {
             var imageReader: ImageReader? = null
             var capturedImage: Image? = null
             try {
-                imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
+                imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, IMAGE_READER_MAX_IMAGES)
                 virtualDisplay = projection.createVirtualDisplay(
                     "screenshot-capture",
                     width,
@@ -315,6 +315,12 @@ class ScreenshotOverlayService : Service() {
                     if (capturedImage != null) {
                         return@repeat
                     }
+                    if (attempt == 0 || attempt % 5 == 0) {
+                        AppLogger.logInfo(
+                            "ScreenshotOverlayService",
+                            "Awaiting image from virtual display (attempt=${attempt + 1})"
+                        )
+                    }
                     delay(CAPTURE_RETRY_DELAY_MS)
                 }
                 val image = capturedImage ?: throw IllegalStateException("Failed to capture screen image.")
@@ -330,13 +336,34 @@ class ScreenshotOverlayService : Service() {
             } catch (exception: Exception) {
                 AppLogger.logError("ScreenshotOverlayService", "Capture failed.", exception)
                 notifyFailure()
+                if (exception is SecurityException) {
+                    AppLogger.logError(
+                        "ScreenshotOverlayService",
+                        "Media projection token invalidated; stopping service and prompting reauthorization."
+                    )
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@ScreenshotOverlayService,
+                            getString(R.string.screen_capture_denied),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                    mediaProjection?.unregisterCallback(projectionCallback)
+                    mediaProjection?.stop()
+                    mediaProjection = null
+                    withContext(Dispatchers.Main) {
+                        stopSelf()
+                    }
+                }
             } finally {
                 capturedImage?.close()
                 imageReader?.close()
                 virtualDisplay?.release()
                 virtualDisplay = null
-                withContext(Dispatchers.Main) {
-                    floatingButtonController.show()
+                if (mediaProjection != null) {
+                    withContext(Dispatchers.Main) {
+                        floatingButtonController.show()
+                    }
                 }
             }
         }
@@ -448,9 +475,10 @@ class ScreenshotOverlayService : Service() {
         const val EXTRA_RESULT_DATA = "extra_result_data"
         private const val CHANNEL_ID = "screenshot_overlay_channel"
         private const val NOTIFICATION_ID = 1001
-        private const val CAPTURE_START_DELAY_MS = 150L
-        private const val CAPTURE_RETRY_DELAY_MS = 50L
-        private const val MAX_CAPTURE_ATTEMPTS = 6
+        private const val CAPTURE_START_DELAY_MS = 450L
+        private const val CAPTURE_RETRY_DELAY_MS = 100L
+        private const val MAX_CAPTURE_ATTEMPTS = 30
+        private const val IMAGE_READER_MAX_IMAGES = 3
         private const val OVERLAY_DISMISS_DELAY_MS = 120L
     }
 }
