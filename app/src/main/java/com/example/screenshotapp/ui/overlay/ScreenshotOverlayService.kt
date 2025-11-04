@@ -40,6 +40,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 /**
  * Hosts the floating overlay button and handles screen capture workflows.
@@ -310,22 +313,11 @@ class ScreenshotOverlayService : Service() {
                     null
                 )
                 delay(CAPTURE_START_DELAY_MS)
-                repeat(MAX_CAPTURE_ATTEMPTS) { attempt ->
-                    capturedImage = imageReader.acquireLatestImage()
-                    if (capturedImage != null) {
-                        return@repeat
-                    }
-                    if (attempt == 0 || attempt % 5 == 0) {
-                        AppLogger.logInfo(
-                            "ScreenshotOverlayService",
-                            "Awaiting image from virtual display (attempt=${attempt + 1})"
-                        )
-                    }
-                    delay(CAPTURE_RETRY_DELAY_MS)
-                }
+                capturedImage = awaitImage(imageReader)
                 val image = capturedImage ?: throw IllegalStateException("Failed to capture screen image.")
                 val bitmap = image.toBitmap(width, height)
                 image.close()
+                capturedImage = null
                 val cropped = screenshotProcessor.crop(bitmap, selection)
                 val uri = screenshotStorage.saveBitmap(cropped)
                 ClipboardHelper.copyImageToClipboard(this@ScreenshotOverlayService, uri)
@@ -365,6 +357,35 @@ class ScreenshotOverlayService : Service() {
                         floatingButtonController.show()
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * Suspends until the [ImageReader] delivers an image or the operation times out.
+     *
+     * Inputs: [imageReader] - Configured reader for the virtual display.
+     * Outputs: Captured [Image] or null if timeout occurs.
+     */
+    private suspend fun awaitImage(imageReader: ImageReader): Image? {
+        return withTimeoutOrNull(CAPTURE_TIMEOUT_MS) {
+            suspendCancellableCoroutine { continuation ->
+                val handler = Handler(Looper.getMainLooper())
+                val listener = ImageReader.OnImageAvailableListener { reader ->
+                    val image = reader.acquireLatestImage()
+                    if (image != null) {
+                        reader.setOnImageAvailableListener(null, null)
+                        continuation.resume(image)
+                    }
+                }
+                continuation.invokeOnCancellation {
+                    imageReader.setOnImageAvailableListener(null, null)
+                }
+                imageReader.setOnImageAvailableListener(listener, handler)
+            }
+        }.also {
+            if (it == null) {
+                AppLogger.logError("ScreenshotOverlayService", "Timed out waiting for image from virtual display.")
             }
         }
     }
@@ -476,9 +497,8 @@ class ScreenshotOverlayService : Service() {
         private const val CHANNEL_ID = "screenshot_overlay_channel"
         private const val NOTIFICATION_ID = 1001
         private const val CAPTURE_START_DELAY_MS = 450L
-        private const val CAPTURE_RETRY_DELAY_MS = 100L
-        private const val MAX_CAPTURE_ATTEMPTS = 30
         private const val IMAGE_READER_MAX_IMAGES = 3
         private const val OVERLAY_DISMISS_DELAY_MS = 120L
+        private const val CAPTURE_TIMEOUT_MS = 4000L
     }
 }
