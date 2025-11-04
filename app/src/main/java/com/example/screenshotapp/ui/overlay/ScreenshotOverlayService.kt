@@ -354,11 +354,10 @@ class ScreenshotOverlayService : Service() {
             try {
                 val reader = imageReader ?: throw IllegalStateException("ImageReader unavailable.")
                 reader.acquireLatestImage()?.close()
-                delay(CAPTURE_START_DELAY_MS)
-                capturedImage = reader.acquireLatestImage() ?: awaitImage(reader)
-                val image = capturedImage ?: throw IllegalStateException("Failed to capture screen image.")
-                val bitmap = image.toBitmap(width, height)
-                image.close()
+                val image = awaitImage(reader)
+                capturedImage = image ?: throw IllegalStateException("Failed to capture screen image.")
+                val bitmap = capturedImage!!.toBitmap(width, height)
+                capturedImage!!.close()
                 capturedImage = null
                 val cropped = screenshotProcessor.crop(bitmap, selection)
                 val uri = screenshotStorage.saveBitmap(cropped)
