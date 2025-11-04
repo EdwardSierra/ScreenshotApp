@@ -366,6 +366,7 @@ class ScreenshotOverlayService : Service() {
                 notifySuccess()
                 bitmap.recycle()
                 cropped.recycle()
+                resetProjection()
             } catch (exception: Exception) {
                 AppLogger.logError("ScreenshotOverlayService", "Capture failed.", exception)
                 notifyFailure()
@@ -379,6 +380,8 @@ class ScreenshotOverlayService : Service() {
                         awaitingReprojection = true
                         requestProjectionPermission()
                     }
+                } else {
+                    resetProjection()
                 }
             } finally {
                 capturedImage?.close()
