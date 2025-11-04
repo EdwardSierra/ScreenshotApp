@@ -66,6 +66,7 @@ class ScreenshotOverlayService : Service() {
     private var controlsView: android.view.View? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var currentMode: SelectionMode = SelectionMode.RECTANGLE
+    private var pendingSelection = false
 
     /**
      * Provides the binding interface; unused because the service is started.
@@ -86,7 +87,7 @@ class ScreenshotOverlayService : Service() {
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         mediaProjectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         floatingButtonController = FloatingButtonController(this, windowManager) {
-            enterSelectionMode()
+            startSelectionFlow()
         }
         screenshotStorage = ScreenshotStorage(this)
         imageListenerThread = HandlerThread("screenshot-image-listener").apply { start() }
@@ -123,6 +124,7 @@ class ScreenshotOverlayService : Service() {
             @Suppress("DEPRECATION")
             intent?.getParcelableExtra(EXTRA_RESULT_DATA)
         }
+        val autoStart = intent?.getBooleanExtra(EXTRA_AUTO_START_SELECTION, false) ?: false
         if (data == null || resultCode == 0) {
             Toast.makeText(this, getString(R.string.screen_capture_denied), Toast.LENGTH_SHORT).show()
             AppLogger.logError("ScreenshotOverlayService", "Missing media projection data.")
@@ -149,7 +151,28 @@ class ScreenshotOverlayService : Service() {
             return START_NOT_STICKY
         }
         AppLogger.logInfo("ScreenshotOverlayService", "Overlay service started.")
+        if (autoStart || pendingSelection) {
+            pendingSelection = false
+            enterSelectionMode()
+        }
         return START_STICKY
+    }
+
+    private fun startSelectionFlow() {
+        if (mediaProjection == null) {
+            pendingSelection = true
+            requestProjectionPermission()
+            return
+        }
+        enterSelectionMode()
+    }
+
+    private fun requestProjectionPermission() {
+        AppLogger.logInfo("ScreenshotOverlayService", "Requesting projection permission from activity.")
+        val intent = Intent(this, com.example.screenshotapp.ui.ProjectionRequestActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        startActivity(intent)
     }
 
     /**
@@ -357,22 +380,15 @@ class ScreenshotOverlayService : Service() {
                 AppLogger.logError("ScreenshotOverlayService", "Capture failed.", exception)
                 notifyFailure()
                 if (exception is SecurityException) {
-                    AppLogger.logError(
-                        "ScreenshotOverlayService",
-                        "Media projection token invalidated; stopping service and prompting reauthorization."
-                    )
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(
-                            this@ScreenshotOverlayService,
-                            getString(R.string.screen_capture_denied),
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                    resetProjection()
-                    withContext(Dispatchers.Main) {
-                        stopSelf()
-                    }
-                }
+            AppLogger.logError(
+                "ScreenshotOverlayService",
+                "Media projection token invalidated; prompting reauthorization."
+            )
+            withContext(Dispatchers.Main) {
+                pendingSelection = true
+                requestProjectionPermission()
+            }
+        }
             } finally {
                 capturedImage?.close()
                 if (listenerRegistered) {
@@ -523,6 +539,7 @@ class ScreenshotOverlayService : Service() {
     companion object {
         const val EXTRA_RESULT_CODE = "extra_result_code"
         const val EXTRA_RESULT_DATA = "extra_result_data"
+        const val EXTRA_AUTO_START_SELECTION = "extra_auto_start"
         private const val CHANNEL_ID = "screenshot_overlay_channel"
         private const val NOTIFICATION_ID = 1001
         private const val CAPTURE_START_DELAY_MS = 450L
