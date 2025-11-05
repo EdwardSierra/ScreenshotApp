@@ -5,3 +5,4 @@
 - Logging is file-based; rotate or truncate the log in `AppLogger` if the file grows beyond acceptable limits.
 - The simplified Gradle wrapper scripts assume a standard Java setup. If you encounter launch issues, regenerate the wrapper with `gradle wrapper` using a full Gradle installation.
 - `ProjectionPermissionRepository` keeps the latest MediaProjection tokens in memory. Clear it when a capture fails with a security exception so future runs re-request permission.
+- `ScreenCaptureManager` registers a `MediaProjection.Callback` before creating virtual displays. Do not remove this call—the platform enforces the callback requirement on newer Android builds.

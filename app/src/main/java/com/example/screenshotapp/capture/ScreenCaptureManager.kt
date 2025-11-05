@@ -45,6 +45,7 @@ class ScreenCaptureManager(private val context: Context) {
         )
         val listenerThread = HandlerThread("quick-screenshot-listener").apply { start() }
         val handler = Handler(listenerThread.looper)
+        val projectionCallback = registerProjectionCallback(projection, handler, imageReader)
         val virtualDisplay = projection.createVirtualDisplay(
             "quick-settings-screenshot",
             width,
@@ -65,6 +66,8 @@ class ScreenCaptureManager(private val context: Context) {
         } finally {
             imageReader.setOnImageAvailableListener(null, null)
             virtualDisplay.safeRelease()
+            projection.unregisterCallback(projectionCallback)
+            AppLogger.logInfo("ScreenCaptureManager", "MediaProjection callback unregistered after capture.")
             imageReader.close()
             listenerThread.quitSafely()
             try {
@@ -155,6 +158,32 @@ class ScreenCaptureManager(private val context: Context) {
 }
 
 /**
+ * Registers a projection callback that ensures resources are cleaned up when the projection stops.
+ *
+ * Inputs: [projection] - MediaProjection to observe, [handler] - Callback thread, [imageReader] - Capture surface.
+ * Outputs: Registered [MediaProjection.Callback] instance.
+ */
+@VisibleForTesting
+internal fun ScreenCaptureManager.registerProjectionCallback(
+    projection: MediaProjection,
+    handler: Handler,
+    imageReader: ImageReader
+): MediaProjection.Callback {
+    val callback = object : MediaProjection.Callback() {
+        override fun onStop() {
+            AppLogger.logError(
+                "ScreenCaptureManager",
+                "MediaProjection stopped before capture completed; clearing image listener."
+            )
+            imageReader.setOnImageAvailableListener(null, null)
+        }
+    }
+    projection.registerCallback(callback, handler)
+    AppLogger.logInfo("ScreenCaptureManager", "MediaProjection callback registered for capture session.")
+    return callback
+}
+
+/**
  * Executes the supplied block and closes the [Image] afterward.
  *
  * Inputs: [block] - Function to run with the open image.
@@ -167,4 +196,3 @@ private inline fun <T> Image.use(block: (Image) -> T): T {
         close()
     }
 }
-
