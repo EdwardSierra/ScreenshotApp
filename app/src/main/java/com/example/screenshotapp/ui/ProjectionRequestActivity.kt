@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.VisibleForTesting
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.screenshotapp.R
@@ -59,9 +60,17 @@ class ProjectionRequestActivity : AppCompatActivity() {
     private fun handleProjectionResult(resultCode: Int, data: Intent?) {
         if (resultCode == Activity.RESULT_OK && data != null) {
             ProjectionPermissionRepository.store(resultCode, Intent(data))
-            Toast.makeText(this, getString(R.string.capture_permission_granted), Toast.LENGTH_SHORT).show()
-            AppLogger.logInfo("ProjectionRequestActivity", "Media projection permission granted.")
-            if (intent.getBooleanExtra(EXTRA_TRIGGER_CAPTURE, false)) {
+            val triggeredCapture = intent.getBooleanExtra(EXTRA_TRIGGER_CAPTURE, false)
+            if (shouldShowPermissionGrantedToast(triggeredCapture)) {
+                Toast.makeText(this, getString(R.string.capture_permission_granted), Toast.LENGTH_SHORT).show()
+                AppLogger.logInfo("ProjectionRequestActivity", "Media projection permission granted with toast.")
+            } else {
+                AppLogger.logInfo(
+                    "ProjectionRequestActivity",
+                    "Media projection permission granted; skipping toast to avoid overlaying capture."
+                )
+            }
+            if (triggeredCapture) {
                 val serviceIntent = ScreenshotCaptureService.createIntent(this)
                 ContextCompat.startForegroundService(this, serviceIntent)
             }
@@ -74,6 +83,16 @@ class ProjectionRequestActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_TRIGGER_CAPTURE = "extra_trigger_capture"
+
+        /**
+         * Determines whether the success toast should be displayed after permission grant.
+         *
+         * Inputs: [triggeredCapture] - True when the request originated from the quick settings tile.
+         * Outputs: True to show the toast, false when it should be suppressed.
+         */
+        @VisibleForTesting
+        internal fun shouldShowPermissionGrantedToast(triggeredCapture: Boolean): Boolean =
+            !triggeredCapture
     }
 
     /**
