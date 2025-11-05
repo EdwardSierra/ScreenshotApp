@@ -44,3 +44,11 @@ The suite runs on Robolectric so Android framework classes (e.g., `Bitmap`, `Int
 - Clipboard integration still uses a FileProvider-backed URI. Update `file_paths.xml` if the storage location changes.
 - `ScreenshotTileService` must stay exported so System UI can bind; the `android.permission.BIND_QUICK_SETTINGS_TILE` permission continues guarding access.
 - Remember to keep `.gitignore` in sync when new build artifacts appear.
+
+## License
+
+This project is licensed under the [GNU General Public License v3.0](LICENSE).
+
+You are free to use, modify, and distribute this app as long as any
+derivative work is also released under the GPL v3 license and includes
+proper attribution to the original author.
