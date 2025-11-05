@@ -59,7 +59,7 @@
 
         <service
             android:name=".ui.tile.ScreenshotTileService"
-            android:exported="false"
+            android:exported="true"
             android:label="@string/tile_label"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>

@@ -41,4 +41,5 @@ The suite runs on Robolectric so Android framework classes (e.g., `Bitmap`, `Int
 - `ProjectionPermissionRepository` caches the most recent MediaProjection approval. Call `store` after any successful permission flow and `clear` when tokens become invalid.
 - `ScreenshotCaptureService` performs the foreground capture and launches `CropScreenshotActivity` with a cached PNG. The crop view scales the bitmap using a center-fit matrix; keep scaling logic in sync if you change rendering behaviour.
 - Clipboard integration still uses a FileProvider-backed URI. Update `file_paths.xml` if the storage location changes.
+- `ScreenshotTileService` must stay exported so System UI can bind; the `android.permission.BIND_QUICK_SETTINGS_TILE` permission continues guarding access.
 - Remember to keep `.gitignore` in sync when new build artifacts appear.
