@@ -26,6 +26,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -119,6 +120,13 @@ class ScreenshotCaptureService : Service() {
             notifyPermissionRequired()
             requestProjectionPermission()
             return
+        }
+        if (ProjectionPermissionRepository.consumeJustGrantedFlag()) {
+            AppLogger.logInfo(
+                "ScreenshotCaptureService",
+                "Delaying capture to allow system selection UI to dismiss."
+            )
+            delay(PERMISSION_DISMISS_DELAY_MS)
         }
         try {
             val bitmap = withContext(Dispatchers.IO) {
@@ -260,6 +268,7 @@ class ScreenshotCaptureService : Service() {
     companion object {
         private const val CHANNEL_ID = "screenshot_capture_channel"
         private const val NOTIFICATION_ID = 2001
+        private const val PERMISSION_DISMISS_DELAY_MS = 600L
 
         /**
          * Creates a start intent for this service.

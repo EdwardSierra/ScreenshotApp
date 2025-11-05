@@ -2,50 +2,57 @@ package com.example.screenshotapp.capture
 
 import android.content.Intent
 import org.junit.After
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 
 /**
- * Verifies the in-memory behaviour of [ProjectionPermissionRepository].
+ * Covers the stateful behaviour of [ProjectionPermissionRepository].
  *
- * Inputs: Synthetic intent data representing MediaProjection results.
- * Outputs: Assertions covering store and clear operations.
+ * Inputs: Fake permission results.
+ * Outputs: Verification of the just-granted delay flag.
  */
 @RunWith(RobolectricTestRunner::class)
 class ProjectionPermissionRepositoryTest {
 
+    /**
+     * Ensures the delay flag is delivered once after storing permission data.
+     *
+     * Inputs: None.
+     * Outputs: Assertions checking the consumption semantics.
+     */
+    @Test
+    fun consumeJustGrantedFlag_onlyTrueImmediatelyAfterStore() {
+        ProjectionPermissionRepository.store(1, Intent("test"))
+
+        assertTrue(ProjectionPermissionRepository.consumeJustGrantedFlag())
+        assertFalse(ProjectionPermissionRepository.consumeJustGrantedFlag())
+    }
+
+    /**
+     * Validates that clearing the repository resets the pending delay flag.
+     *
+     * Inputs: None.
+     * Outputs: Assertion confirming the flag is false after a clear.
+     */
+    @Test
+    fun clear_resetsPendingDelayFlag() {
+        ProjectionPermissionRepository.store(1, Intent("test"))
+        ProjectionPermissionRepository.clear()
+
+        assertFalse(ProjectionPermissionRepository.consumeJustGrantedFlag())
+    }
+
+    /**
+     * Cleans repository state between tests.
+     *
+     * Inputs: None.
+     * Outputs: Permission cache cleared.
+     */
     @After
     fun tearDown() {
         ProjectionPermissionRepository.clear()
     }
-
-    /**
-     * Ensures storing permission data flips the repository into the ready state.
-     *
-     * Inputs: None.
-     * Outputs: Assertion verifying [ProjectionPermissionRepository.hasPermission].
-     */
-    @Test
-    fun storeMarksPermissionPresent() {
-        assertFalse(ProjectionPermissionRepository.hasPermission())
-        ProjectionPermissionRepository.store(1, Intent())
-        assertTrue(ProjectionPermissionRepository.hasPermission())
-    }
-
-    /**
-     * Ensures clearing permission data removes the ready state flag.
-     *
-     * Inputs: None.
-     * Outputs: Assertion verifying [ProjectionPermissionRepository.clear].
-     */
-    @Test
-    fun clearResetsPermissionState() {
-        ProjectionPermissionRepository.store(1, Intent())
-        ProjectionPermissionRepository.clear()
-        assertFalse(ProjectionPermissionRepository.hasPermission())
-    }
 }
-

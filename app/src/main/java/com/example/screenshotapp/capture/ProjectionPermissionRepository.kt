@@ -15,6 +15,7 @@ object ProjectionPermissionRepository {
 
     private var resultCode: Int? = null
     private var projectionData: Intent? = null
+    private var pendingDelay = false
 
     /**
      * Persists the latest permission grant so background services can reuse it.
@@ -25,6 +26,7 @@ object ProjectionPermissionRepository {
     fun store(code: Int, data: Intent) {
         resultCode = code
         projectionData = Intent(data)
+        pendingDelay = true
         AppLogger.logInfo("ProjectionPermissionRepository", "Stored media projection permission.")
     }
 
@@ -66,7 +68,19 @@ object ProjectionPermissionRepository {
     fun clear() {
         resultCode = null
         projectionData = null
+        pendingDelay = false
         AppLogger.logInfo("ProjectionPermissionRepository", "Cleared stored media projection permission.")
     }
-}
 
+    /**
+     * Returns true only once immediately after a permission grant so callers can delay work.
+     *
+     * Inputs: None.
+     * Outputs: Boolean indicating that the permission was just stored.
+     */
+    fun consumeJustGrantedFlag(): Boolean {
+        val wasPending = pendingDelay
+        pendingDelay = false
+        return wasPending
+    }
+}

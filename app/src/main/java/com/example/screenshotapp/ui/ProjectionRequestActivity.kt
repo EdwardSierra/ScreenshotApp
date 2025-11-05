@@ -2,7 +2,9 @@ package com.example.screenshotapp.ui
 
 import android.app.Activity
 import android.content.Intent
+import android.media.projection.MediaProjectionConfig
 import android.media.projection.MediaProjectionManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,7 +47,7 @@ class ProjectionRequestActivity : AppCompatActivity() {
                 return
             }
         AppLogger.logInfo("ProjectionRequestActivity", "Requesting media projection permission.")
-        projectionLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
+        projectionLauncher.launch(createCaptureIntent())
     }
 
     /**
@@ -73,5 +75,21 @@ class ProjectionRequestActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_TRIGGER_CAPTURE = "extra_trigger_capture"
     }
-}
 
+    /**
+     * Builds the screen capture intent, preferring full-display capture on Android 14+.
+     *
+     * Inputs: None.
+     * Outputs: Intent preconfigured for the system capture dialog.
+     */
+    private fun createCaptureIntent(): Intent {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            AppLogger.logInfo("ProjectionRequestActivity", "Defaulting to full-display capture region.")
+            mediaProjectionManager.createScreenCaptureIntent(
+                MediaProjectionConfig.createConfigForDefaultDisplay()
+            )
+        } else {
+            mediaProjectionManager.createScreenCaptureIntent()
+        }
+    }
+}
