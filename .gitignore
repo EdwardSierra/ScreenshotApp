@@ -15,6 +15,7 @@ Thumbs.db
 # Logs
 *.log
 *.hprof
+screenshot_log*
 
 # Gradle wrapper caches
 gradle-app.setting
