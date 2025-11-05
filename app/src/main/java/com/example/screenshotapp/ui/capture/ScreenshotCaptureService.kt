@@ -13,6 +13,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.content.pm.ServiceInfo
+import androidx.annotation.VisibleForTesting
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.example.screenshotapp.R
@@ -41,6 +42,7 @@ class ScreenshotCaptureService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Main.immediate + Job())
     private lateinit var captureManager: ScreenCaptureManager
     private lateinit var screenshotCache: ScreenshotCache
+    private var showCapturingToast = false
 
     /**
      * No binding support; the service is strictly started.
@@ -71,6 +73,7 @@ class ScreenshotCaptureService : Service() {
      * Outputs: Foreground execution state.
      */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        showCapturingToast = intent?.getBooleanExtra(EXTRA_SHOW_CAPTURING_TOAST, false) ?: false
         val notification = buildNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
@@ -185,6 +188,10 @@ class ScreenshotCaptureService : Service() {
      * Outputs: Toast message on the main thread.
      */
     private fun notifyCapturing() {
+        if (!showCapturingToast) {
+            AppLogger.logInfo("ScreenshotCaptureService", "Capture toast suppressed for silent run.")
+            return
+        }
         Handler(Looper.getMainLooper()).post {
             ToastMaker.show(this, getString(R.string.capturing_screen))
         }
@@ -269,6 +276,8 @@ class ScreenshotCaptureService : Service() {
         private const val CHANNEL_ID = "screenshot_capture_channel"
         private const val NOTIFICATION_ID = 2001
         private const val PERMISSION_DISMISS_DELAY_MS = 600L
+        @VisibleForTesting
+        internal const val EXTRA_SHOW_CAPTURING_TOAST = "extra_show_capturing_toast"
 
         /**
          * Creates a start intent for this service.
@@ -276,8 +285,10 @@ class ScreenshotCaptureService : Service() {
          * Inputs: [context] - Caller context.
          * Outputs: Configured [Intent] targeting the capture service.
          */
-        fun createIntent(context: Context): Intent =
-            Intent(context, ScreenshotCaptureService::class.java)
+        fun createIntent(context: Context, showCapturingToast: Boolean = false): Intent =
+            Intent(context, ScreenshotCaptureService::class.java).apply {
+                putExtra(EXTRA_SHOW_CAPTURING_TOAST, showCapturingToast)
+            }
     }
 }
 
